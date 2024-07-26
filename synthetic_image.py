@@ -3,6 +3,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import random
 import os
+import csv
 
 
 
@@ -137,12 +138,21 @@ def initiator(path="images/train/synth_data", font_dir='fonts/', bg_dir='bg/', c
     
     fonts, bg = list_ttf_jpg(font_dir, bg_dir)
     
+    # For keeping track of texts contained in the image
+    labels = []
+    
     for i in range(n):
         text = ''.join(random.choices(characters, k=5))
         bg_img = random.choice(bg)
         save_path = path
         filename = f'{i}.png'
         generate_synth_img(text=text, background_image=bg_img, path=save_path, filename=filename, fonts=fonts)
+        labels.append((filename, text))
+        
+    with open(os.path.join(path, 'labels.csv'), 'w', newline='') as csvfile:
+        labelwriter = csv.writer(csvfile)
+        labelwriter.writerow(['filename', 'label'])
+        labelwriter.writerows(labels)
 
 
 

@@ -26,13 +26,13 @@ The `bg` folder should contain images that will serve as backgrounds for the syn
 
 ### Example Structure
 
-project_root/
-│
-├── bg/
-│ ├── image1.jpg
-│ ├── image2.jpg
-│ ├── image3.jpg
-│ └── ...
+- project_root\
+ │
+ ├── bg\
+ │ ├── image1.jpg\
+ │ ├── image2.jpg\
+ │ ├── image3.jpg\
+ │ └── ...\
 
 # Synthetic Image Generation: Backgrounds and Fonts
 
@@ -62,11 +62,11 @@ The `bg` folder should contain images that will serve as backgrounds for the syn
 
 ### Example Structure
 
-project_root/
+- project_root\
 │
-├── fonts/
-│ ├── font1.ttf
-│ ├── font2.ttf
-│ ├── font3.ttf
-│ └── ...
+├── fonts\
+│ ├── font1.ttf\
+│ ├── font2.ttf\
+│ ├── font3.ttf\
+│ └── ...\
 
