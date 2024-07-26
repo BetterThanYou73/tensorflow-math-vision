@@ -1,13 +1,11 @@
 import cv2
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 import random
 import os
 import csv
 
-
-
-def random_clip_and_distort(image, fraction=0.5):
+def random_clip_and_distort(image, fraction=0.6):
     """
     Randomly clips and distorts the given image.
 
@@ -18,27 +16,44 @@ def random_clip_and_distort(image, fraction=0.5):
         numpy.ndarray: The clipped and distorted image.
     """
     
-    # clipping image
     h, w = image.shape[:2]
-    startx = random.randint(0, int(w * (1 - fraction)))
-    starty = random.randint(0, int(w * (1 - fraction)))
-    endx = startx + int(w * fraction)
-    endy = starty + int(h * fraction)
-    clipped_img = image[starty:endy, startx:endx]
-    
-    # resizing it
-    clipped_img = cv2.resize(clipped_img, (w, h))
-    
-    # adding distort
+
+    # Points for the original image
     pts1 = np.float32([[0, 0], [w, 0], [0, h]])
+
+    # Points for the distorted image
     pts2 = np.float32([[random.randint(0, w // 4), random.randint(0, h // 4)],
                        [random.randint(3 * w // 4, w), random.randint(0, h // 4)],
                        [random.randint(0, w // 4), random.randint(3 * h // 4, h)]])
-    
+
+    # Calculate the transformation matrix
     matrix = cv2.getAffineTransform(pts1, pts2)
-    distorted_image = cv2.warpAffine(clipped_img, matrix, (w, h))
-    
-    return distorted_image
+
+    # Apply the distortion
+    distorted_image = cv2.warpAffine(image, matrix, (w, h))
+
+    # Calculate the inverse of the transformation matrix
+    inv_matrix = cv2.invertAffineTransform(matrix)
+
+    # Calculate the clipping coordinates in the distorted image
+    startx = random.randint(0, int(w * (1 - fraction)))
+    starty = random.randint(0, int(h * (1 - fraction)))
+    endx = startx + int(w * fraction)
+    endy = starty + int(h * fraction)
+
+    # Ensure the clipping coordinates are within the image bounds
+    startx = max(0, startx)
+    starty = max(0, starty)
+    endx = min(w, endx)
+    endy = min(h, endy)
+
+    # Clip the distorted image
+    clipped_img = distorted_image[starty:endy, startx:endx]
+
+    # Resize back to original size
+    clipped_img = cv2.resize(clipped_img, (w, h))
+
+    return clipped_img
 
 
 
@@ -61,9 +76,16 @@ def generate_synth_img(text, background_image, path, filename, fonts):
     bg_pil = Image.fromarray(bg)
     bg_pil = bg_pil.resize((256, 256))
     
-    # Choosing font
+    # Randomly adjust brightness and contrast
+    enhancer = ImageEnhance.Brightness(bg_pil)
+    bg_pil = enhancer.enhance(random.uniform(0.95, 1.05))
+    enhancer = ImageEnhance.Contrast(bg_pil)
+    bg_pil = enhancer.enhance(random.uniform(1, 1.2))
+    
+    # Choosing font and font size
     font_path = random.choice(fonts)
-    font = ImageFont.truetype(font_path, 40)
+    font_size = int(random.uniform(35, 60))
+    font = ImageFont.truetype(font_path, font_size)
     
     # Draw text on the background
     draw = ImageDraw.Draw(bg_pil)
@@ -71,19 +93,30 @@ def generate_synth_img(text, background_image, path, filename, fonts):
     text_width, text_height = text_bbox[2] - text_bbox[0], text_bbox[3] - text_bbox[1]
     
     # Ensure the text fits within the image dimensions
-    if text_height > bg_pil.height:
-        text_height = bg_pil.height
-    if text_width > bg_pil.width:
-        text_width = bg_pil.width
+    max_attempts = 10
+    for _ in range(max_attempts):
+        if text_width <= bg_pil.width and text_height <= bg_pil.height:
+            break
+        font_size -= 2  # Decrease font size if text doesn't fit
+        font = ImageFont.truetype(font_path, font_size)
+        text_bbox = draw.textbbox((0, 0), text, font=font)
+        text_width, text_height = text_bbox[2] - text_bbox[0], text_bbox[3] - text_bbox[1]
+
     
     # Random position
-    x = random.randint(0, bg_pil.width - text_width)
-    y = random.randint(0, bg_pil.height - text_height)
+    x = random.randint(0, max(0, bg_pil.width - text_width))
+    y = random.randint(0, max(0, bg_pil.height - text_height))
     
-    draw.text((x, y), text, font=font, fill=(255, 255, 255))
+    # Choosing random text color
+    text_color = tuple(np.random.randint(0, 256, size=3))
+    draw.text((x, y), text, font=font, fill=text_color)
     
     # Converting to numpy array
     img = np.array(bg_pil)
+    
+    # Add random noise
+    noise = np.random.normal(0, 0.5, img.shape).astype(np.uint8)
+    img = cv2.add(img, noise)
     
     if not os.path.exists(path):
         os.makedirs(path)
@@ -133,8 +166,8 @@ def initiator(path="images/train/synth_data", font_dir='fonts/', bg_dir='bg/', c
         bg_dir (str, optional): Directory containing background images. Defaults to 'bg/'.
         n (int, optional): Number of synthetic images to generate. Defaults to 1000.
     """
-    # Making randomness less chaotic
-    random.seed(seed)
+    # Making randomness less chaotic (for testing)
+    #random.seed(seed)
     
     fonts, bg = list_ttf_jpg(font_dir, bg_dir)
     
