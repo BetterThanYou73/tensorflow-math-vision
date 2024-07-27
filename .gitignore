@@ -5,9 +5,13 @@ archive.zip
 images.zip
 
 # Ignore all files in a specific directory
-images/test/
-images/train/
-images/validation/
+images/test/valid
+images/test/invalid
+images/train/valid
+images/train/invalid
+images/validation/valid
+images/validation/invalid
+images/image_pool/
 
 # Ignore all files in a specific directory
 archive/
