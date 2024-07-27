@@ -10,6 +10,16 @@ IMAGE_POOLING = True
 
 # Function to check if all characters in the label are valid
 def is_valid_label(label, valid_characters):
+    """Return True if  the label is consisted only of given string of valid characters
+
+    Args:
+        label (str): contains the label
+        valid_characters (str): set of allowed characters
+
+    Returns:
+        bool: True if valid and False if invalid
+    """
+    
     if isinstance(label, str):
         return all(char in valid_characters for char in label)
     return False
