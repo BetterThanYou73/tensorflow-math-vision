@@ -1,0 +1,11 @@
+# Ignore archive.zip
+archive.zip
+
+# Ignore images.zip
+images.zip
+
+# Ignore all files in a specific directory
+images/
+
+# Ignore all files in a specific directory
+archive/
