@@ -5,16 +5,20 @@ archive.zip
 images.zip
 
 # Ignore all files in a specific directory
-images/test/valid
-images/test/invalid
-images/train/valid
-images/train/invalid
-images/validation/valid
-images/validation/invalid
+/fonts/old
+/bg/
+
+# Ignore all files in a specific directory
 images/image_pool/
+images/old_data
+images/dataset/
+images/fine_tune_dataset/
+images/test/
 
 # Ignore all files in a specific directory
 archive/
+images/train/all_classes
+images/test/all_classes
 images/train/synth_data/0.png
 images/train/synth_data/1.png
 images/train/synth_data/2.png
@@ -116,3 +120,17 @@ images/train/synth_data/97.png
 images/train/synth_data/98.png
 images/train/synth_data/99.png
 images/train/synth_data/labels.csv
+get-pip.py
+images.rar
+bg_dataset.zip
+emnist_to_images.py
+color_to_grayscale.py
+class_balancing.py
+generate_model.py
+test_model.py
+training_log.csv
+docs/model_architecture_generate_using_ai.webp
+models/math-vision-post-tuning-resnet.h5
+checkpoints/math-vision-resnet-model-checkpoint.h5
+checkpoints/resnet-math-vision-fine-tuning.h5
+models/math-vision-resnet_model.h5

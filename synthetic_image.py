@@ -1,194 +1,209 @@
-import cv2
-import numpy as np
-from PIL import Image, ImageDraw, ImageFont, ImageEnhance
-import random
 import os
-import csv
+import random
+from PIL import Image, ImageDraw, ImageFont, ImageChops, ImageOps
+from concurrent.futures import ThreadPoolExecutor
+import multiprocessing
 
-def random_clip_and_distort(image, fraction=0.6):
-    """
-    Randomly clips and distorts the given image.
+# Mapping for characters
+char_to_folder = {
+    33 : ' ! ',
+    35 : ' # ',
+    36 : ' $ ',
+    37 : ' % ',
+    38 : ' & ',
+    40 : ' ( ',
+    41 : ' ) ',
+    42 : ' * ',
+    43 : ' + ',
+    44 : ' , ',
+    45 : ' - ',
+    46 : ' . ',
+    47 : ' / ',
+    48 : ' 0 ',
+    49 : ' 1 ',
+    50 : ' 2 ',
+    51 : ' 3 ',
+    52 : ' 4 ',
+    53 : ' 5 ',
+    54 : ' 6 ',
+    55 : ' 7 ',
+    56 : ' 8 ',
+    57 : ' 9 ',
+    58 : ' : ',
+    59 : ' ; ',
+    60 : ' < ',
+    61 : ' = ',
+    62 : ' > ',
+    63 : ' ? ',
+    64 : ' @ ',
+    65 : ' A ',
+    66 : ' B ',
+    67 : ' C ',
+    68 : ' D ',
+    69 : ' E ',
+    70 : ' F ',
+    71 : ' G ',
+    72 : ' H ',
+    73 : ' I ',
+    74 : ' J ',
+    75 : ' K ',
+    76 : ' L ',
+    77 : ' M ',
+    78 : ' N ',
+    79 : ' O ',
+    80 : ' P ',
+    81 : ' Q ',
+    82 : ' R ',
+    83 : ' S ',
+    84 : ' T ',
+    85 : ' U ',
+    86 : ' V ',
+    87 : ' W ',
+    88 : ' X ',
+    89 : ' Y ',
+    90 : ' Z ',
+    91 : ' [ ',
+    93 : ' ] ',
+    94 : ' ^ ',
+    95 : ' _ ',
+    97 : ' a ',
+    98 : ' b ',
+    99 : ' c ',
+    100 : ' d ',
+    101 : ' e ',
+    102 : ' f ',
+    103 : ' g ',
+    104 : ' h ',
+    105 : ' i ',
+    106 : ' j ',
+    107 : ' k ',
+    108 : ' l ',
+    109 : ' m ',
+    110 : ' n ',
+    111 : ' o ',
+    112 : ' p ',
+    113 : ' q ',
+    114 : ' r ',
+    115 : ' s ',
+    116 : ' t ',
+    117 : ' u ',
+    118 : ' v ',
+    119 : ' w ',
+    120 : ' x ',
+    121 : ' y ',
+    122 : ' z ',
+    123 : ' { ',
+    124 : ' | ',
+    125 : ' } ',
+}
 
-    Args:
-        image (numpy.ndarray): The input image to be clipped and distorted.
-        fraction (float64): The input image to be clipped by this multiplier
-    Returns:
-        numpy.ndarray: The clipped and distorted image.
-    """
-    
-    h, w = image.shape[:2]
+def calculate_crop_box(image, bg_color):
+    bg = Image.new(image.mode, image.size, bg_color)
+    diff = ImageChops.difference(image, bg)
+    bbox = diff.getbbox()
+    if bbox:
+        padding = random.randint(10, 50)  # Add random padding to the crop box
+        left = max(bbox[0] - padding, 0)
+        upper = max(bbox[1] - padding, 0)
+        right = min(bbox[2] + padding, image.width)
+        lower = min(bbox[3] + padding, image.height)
+        return (left, upper, right, lower)
+    else:
+        return (0, 0, image.width, image.height)
 
-    # Points for the original image
-    pts1 = np.float32([[0, 0], [w, 0], [0, h]])
+def generate_character_image(args):
+    char, path, filename, font_path, font_size, fg_color, bg_color = args
+    print(f"Generating image for character '{char}' with font '{font_path}'.")
 
-    # Points for the distorted image
-    pts2 = np.float32([[random.randint(0, w // 4), random.randint(0, h // 4)],
-                       [random.randint(3 * w // 4, w), random.randint(0, h // 4)],
-                       [random.randint(0, w // 4), random.randint(3 * h // 4, h)]])
+    # Create a larger blank image with the specified background color
+    large_image_size = (512, 512)
+    image = Image.new('RGB', large_image_size, bg_color)
+    draw = ImageDraw.Draw(image)
 
-    # Calculate the transformation matrix
-    matrix = cv2.getAffineTransform(pts1, pts2)
-
-    # Apply the distortion
-    distorted_image = cv2.warpAffine(image, matrix, (w, h))
-
-    # Calculate the inverse of the transformation matrix
-    inv_matrix = cv2.invertAffineTransform(matrix)
-
-    # Calculate the clipping coordinates in the distorted image
-    startx = random.randint(0, int(w * (1 - fraction)))
-    starty = random.randint(0, int(h * (1 - fraction)))
-    endx = startx + int(w * fraction)
-    endy = starty + int(h * fraction)
-
-    # Ensure the clipping coordinates are within the image bounds
-    startx = max(0, startx)
-    starty = max(0, starty)
-    endx = min(w, endx)
-    endy = min(h, endy)
-
-    # Clip the distorted image
-    clipped_img = distorted_image[starty:endy, startx:endx]
-
-    # Resize back to original size
-    clipped_img = cv2.resize(clipped_img, (w, h))
-
-    return clipped_img
-
-
-
-def generate_synth_img(text, background_image, path, filename, fonts):
-    """
-    Generates a synthetic image with the given text and background image.
-
-    Args:
-        text (str): The text to be drawn on the image.
-        background_image (str): Path to the background image.
-        path (str): Directory where the generated image will be saved.
-        filename (str): Name of the generated image file.
-        fonts (list): List of font file paths to randomly select from.
-    """
-    
-    # Loading and applying clip & distortion to image
-    bg = cv2.imread(background_image)
-    bg = random_clip_and_distort(bg)
-    bg = cv2.cvtColor(bg, cv2.COLOR_BGR2RGB)
-    bg_pil = Image.fromarray(bg)
-    bg_pil = bg_pil.resize((256, 256))
-    
-    # Randomly adjust brightness and contrast
-    enhancer = ImageEnhance.Brightness(bg_pil)
-    bg_pil = enhancer.enhance(random.uniform(0.95, 1.05))
-    enhancer = ImageEnhance.Contrast(bg_pil)
-    bg_pil = enhancer.enhance(random.uniform(1, 1.2))
-    
-    # Choosing font and font size
-    font_path = random.choice(fonts)
-    font_size = int(random.uniform(35, 60))
     font = ImageFont.truetype(font_path, font_size)
-    
-    # Draw text on the background
-    draw = ImageDraw.Draw(bg_pil)
-    text_bbox = draw.textbbox((0, 0), text, font=font)
+
+    # Draw the text in the center of the large image
+    text_bbox = draw.textbbox((0, 0), char, font=font)
     text_width, text_height = text_bbox[2] - text_bbox[0], text_bbox[3] - text_bbox[1]
-    
-    # Ensure the text fits within the image dimensions
-    max_attempts = 10
-    for _ in range(max_attempts):
-        if text_width <= bg_pil.width and text_height <= bg_pil.height:
-            break
-        font_size -= 2  # Decrease font size if text doesn't fit
+    while text_width > large_image_size[0] or text_height > large_image_size[1]:
+        font_size -= 5
         font = ImageFont.truetype(font_path, font_size)
-        text_bbox = draw.textbbox((0, 0), text, font=font)
+        text_bbox = draw.textbbox((0, 0), char, font=font)
         text_width, text_height = text_bbox[2] - text_bbox[0], text_bbox[3] - text_bbox[1]
 
-    
-    # Random position
-    x = random.randint(0, max(0, bg_pil.width - text_width))
-    y = random.randint(0, max(0, bg_pil.height - text_height))
-    
-    # Choosing random text color
-    text_color = tuple(np.random.randint(0, 256, size=3))
-    draw.text((x, y), text, font=font, fill=text_color)
-    
-    # Converting to numpy array
-    img = np.array(bg_pil)
-    
-    # Add random noise
-    noise = np.random.normal(0, 0.5, img.shape).astype(np.uint8)
-    img = cv2.add(img, noise)
-    
-    if not os.path.exists(path):
-        os.makedirs(path)
-    
-    # Saving image
-    cv2.imwrite(os.path.join(path, filename), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
+    # Apply random transformations
+    x = (large_image_size[0] - text_width) // 2
+    y = (large_image_size[1] - text_height) // 2
+    draw.text((x, y), char, font=font, fill=fg_color)
 
+    # Apply augmentations: rotation, shear
+    angle = random.uniform(-5, 5)  # Rotation angle
+    image = image.rotate(angle, expand=True)
 
+    shear = random.uniform(-0.15, 0.15)  # Shear factor
+    width, height = image.size
+    xshift = abs(shear) * width
+    new_width = width + int(round(xshift))
+    image = image.transform((new_width, height), Image.AFFINE, (1, shear, -xshift if shear > 0 else 0, 0, 1, 0), Image.BICUBIC)
 
-def list_ttf_jpg(dir1, dir2):
-    """
-    Lists all .ttf files in the given font directory and .jpg files in the given background image directory.
+    # Calculate the crop box based on the furthest non-background pixels
+    crop_box = calculate_crop_box(image, bg_color)
+    print(f"Crop box: {crop_box}")
 
-    Args:
-        dir1 (str): Directory containing font files.
-        dir2 (str): Directory containing background images.
+    try:
+        cropped_image = image.crop(crop_box)
 
-    Returns:
-        tuple: A tuple containing two lists - list of font file paths and list of background image paths.
-    """
-    
-    # For ttf files
+        # Apply augmentations: zoom, stretching
+        zoom_factor = random.uniform(0.8, 1.2)
+        new_size = (int(cropped_image.width * zoom_factor), int(cropped_image.height * zoom_factor))
+        resized_image = cropped_image.resize(new_size, Image.LANCZOS)
+
+        resized_image = resized_image.resize((168, 168), Image.LANCZOS)
+
+        # Determine the directory based on the ASCII code
+        save_path = os.path.join(path, str(ord(char)))
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+            print(f"Created directory: {save_path}")
+
+        file = os.path.join(save_path, f"synth_{filename}")
+        resized_image.save(file)
+    except Exception as e:
+        print(f"Error saving image {filename}: {e}")
+
+def list_ttf(dir1):
     ttf_files = []
     for filename in os.listdir(dir1):
         if filename.endswith('.ttf'):
             ttf_files.append(os.path.join(dir1, filename))
-    
-    # For bg images
-    bg_images = []
-    for filename in os.listdir(dir2):
-        if filename.endswith('.jpg'):
-            bg_images.append(os.path.join(dir2, filename))
-    
-    return (ttf_files, bg_images)
+    print(f"Found font files: {ttf_files}")
+    return ttf_files
 
+def initiator(path="images/dataset/", font_dir='fonts/', characters=char_to_folder, check_existing=True, seed=420, size=2400):
+    random.seed(seed)
+    fonts = list_ttf(font_dir)
+    args_list = []
 
+    for char_code, char in characters.items():
+        save_path = os.path.join(path, str(char_code))
+        print(f'Checking dir {char_code} aka {char} at {save_path}')
+        existing_files = len([name for name in os.listdir(save_path) if os.path.isfile(os.path.join(save_path, name))]) if os.path.exists(save_path) else 0
+        print(f'Existing size of dir {char_code} aka {char}: {existing_files}')
+        images_to_generate = size - existing_files if check_existing else size
 
-def initiator(path="images/train/synth_data", font_dir='fonts/', bg_dir='bg/', characters='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+-*/÷', seed=69, n=100):
-    """
-    Initializes the synthetic image generation process.
+        for _ in range(images_to_generate):
+            fg_color, bg_color = (255, 255, 255), (0, 0, 0)  # White on black
+            font_path = random.choice(fonts)
+            font_name = os.path.splitext(os.path.basename(font_path))[0]
+            filename = f'{font_name}_{char_code}_{random.randint(1, 10000)}_synth.png'
+            
+            args_list.append((chr(char_code), path, filename, font_path, random.randint(100, 150), fg_color, bg_color))
 
-    Args:
-        path (str, optional): Directory where the generated images will be saved. Defaults to "images/train/synth_data".
-        characters (str, optional): String of characters to be used for generating text. Defaults to '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+-*/÷'.
-        seed (int, optional): Random seed for reproducibility. Defaults to 69.
-        font_dir (str, optional): Directory containing font files. Defaults to 'fonts/'.
-        bg_dir (str, optional): Directory containing background images. Defaults to 'bg/'.
-        n (int, optional): Number of synthetic images to generate. Defaults to 1000.
-    """
-    # Making randomness less chaotic (for testing)
-    #random.seed(seed)
-    
-    fonts, bg = list_ttf_jpg(font_dir, bg_dir)
-    
-    # For keeping track of texts contained in the image
-    labels = []
-    
-    for i in range(n):
-        text = ''.join(random.choices(characters, k=5))
-        bg_img = random.choice(bg)
-        save_path = path
-        filename = f'{i}.png'
-        generate_synth_img(text=text, background_image=bg_img, path=save_path, filename=filename, fonts=fonts)
-        labels.append((filename, text))
-        
-    with open(os.path.join(path, 'labels.csv'), 'w', newline='') as csvfile:
-        labelwriter = csv.writer(csvfile)
-        labelwriter.writerow(['filename', 'label'])
-        labelwriter.writerows(labels)
+    # Use all available cores and threads for processing
+    max_workers = multiprocessing.cpu_count()
+    print(f"Using {max_workers} threads for processing.")
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        executor.map(generate_character_image, args_list)
 
-
-
-# Only for generating images (needs to be executed once for gathering training data)
 if __name__ == "__main__":
     initiator()
