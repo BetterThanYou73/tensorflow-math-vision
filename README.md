@@ -21,7 +21,7 @@ If you want the access to the model you can find it at
 [models\math-vision-resnet_model.h5](https://drive.google.com/file/d/1u6BTxlCiS0XiHLW9QY0MCDEjmsmpjOFV/view?usp=drive_link)
 
 
-[models\math-vision-post-tuning-resnet.h5](https://drive.google.com/file/d/1b8WcXg93NnyNutt1khhZNF16oABGxKPU/view?usp=drive_link)  $\;\;\;$ `this one is fine tuned and has overall better accuracy and reliablity`
+[models\math-vision-post-tuning-resnet.h5](https://drive.google.com/file/d/1b8WcXg93NnyNutt1khhZNF16oABGxKPU/view?usp=drive_link) `this one is fine tuned and has overall better accuracy and reliablity`
 
 
 ## Requirements
@@ -75,7 +75,7 @@ It's obvious the tuned model doesn't blunder as much as the non tuned one.
 So for the model I utilised residual blocks to cook up my own resnet model, the goal was for it catch on the character classes and distinguish them, hence I thought a resnet model would be most appropriate.
 
 <img src="docs/model_blueprint.png"  alt="confident:5 wrong: 3, its-a-win:1"/><br /><br />
-as you can see above, the model was quite complex that enabled it to catch on to characters.
+as you can see above, the model was quite complex.
 
 ## Optimizing the model
 
@@ -85,23 +85,24 @@ I used Adam as my optimizer with an initial learning rate of `0.0001` which was 
 
 And for the loss function, I experimented alot and realised due to the vast number of classes categorical crossentropy is not quite optimal for our problem.
 
-$Categorical(p, q) = -\sum{{\substack{\\x\in classes}}\;p(x)\;\log{\;q(x)}}$
-
 This is how categorical crossentropy loss function works.
+
+$Categorical(p, q) = -\sum_{x\in classes} p(x)\;\log{\;q(x)}$
+
 
 And for our problem focal loss function is a better alternative, it helps model to focus well on overlapping features of the classes and enables it to distinguish the model better.
 
-$Focal(\gamma, \alpha) = \sum{\substack{i=n\\i=1}} \;(i-p_i)^\gamma\;\log_b\;(p_i)$
+$Focal(\gamma, \alpha) = \sum_{i=1}^ni=1 (i-p_i)^\gamma\log_b(p_i)$
 
 Below is an example of overlapping examples from our character set.
 
 <img src="docs/class_overlap.png" width="800" height="200" alt="class overlap of characters 'P', 'R','B' respectively"/><br /><br />
 
-From above its work noticing, how the parts of the letter 'R' and 'B' could be mistook as 'P', as they contain features from it, similarly letter 'B' also contains similarity of that of letter 'R'. 
+From above its worth noticing, how the parts of the letter 'R' and 'B' could be mistook as 'P', as they contain features from it, similarly letter 'B' also contains similarity of that of letter 'R'. 
 
 This is just a simple example, with a class size of 89 and lots of them sharing exact resemblence its not quite simple for it distinguish them.
 
-However, focal loss helps model learn the ability to distinguish them, the $\alpha$ and $\gamma$ parameter allows the model to focus on hard to guess and imbalanced classes. Thus increasing the accuracy and decreasing the loss.
+However, focal loss helps model learning the ability to distinguish them, the $\alpha$ and $\gamma$ parameter allows the model to focus on hard to guess and imbalanced classes. Thus increasing the accuracy and decreasing the loss, overall making it more reliable.
 
 This model can achieve better results if trained properly and used the hyper-parameters correctly. I will comeback to this project when I have learned more about machine learning to improve this model.
 
@@ -109,7 +110,7 @@ This model can achieve better results if trained properly and used the hyper-par
 
 ## Final words
 
-This project has been a great learning experience, I learned about machine learning and using tensorflow, but application never really goes as smoothly as learning the theory.
+This project has been a great learning experience, I learned about machine learning and implementing tensorflow, but application never really goes as smoothly as learning the theory.
 
 I learned about Focal loss, CTC loss, Residual Networks (ResNets) etc. Overall it helped me expand my knowledge.
 
