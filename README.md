@@ -83,11 +83,11 @@ Inside `'math_vision_model.ipynb'` you will notice several callback functions wh
 
 I used Adam as my optimizer with an initial learning rate of `0.0001` which was reduced by a factor of 0.2 every 3rd epoch whenever the validation loss arrived plateau, with the lower limit of 1e-7.
 
-And for the loss function, I experimented alot and realised due to the vast number of classes categorical crossentropy is not quite optimal for our problem.
+And for the loss function, I experimented alot and realised categorical crossentropy is not quite optimal for our problem due to the vast number of classes.
 
 This is how categorical crossentropy loss function works.
 
-$Categorical(p, q) = -\sum_{x\in classes} p(x)\;\log{\;q(x)}$
+$Categorical(p, q) = -\sum_{x\in classes} p(x)\log{q(x)}$
 
 
 And for our problem focal loss function is a better alternative, it helps model to focus well on overlapping features of the classes and enables it to distinguish the model better.
@@ -100,7 +100,7 @@ Below is an example of overlapping examples from our character set.
 
 From above its worth noticing, how the parts of the letter 'R' and 'B' could be mistook as 'P', as they contain features from it, similarly letter 'B' also contains similarity of that of letter 'R'. 
 
-This is just a simple example, with a class size of 89 and lots of them sharing exact resemblence its not quite simple for it distinguish them.
+This is just a simple example, with a class size of 89 and lots of them sharing resemblence its not quite simple for it distinguish them.
 
 However, focal loss helps model learning the ability to distinguish them, the $\alpha$ and $\gamma$ parameter allows the model to focus on hard to guess and imbalanced classes. Thus increasing the accuracy and decreasing the loss, overall making it more reliable.
 
